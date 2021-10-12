@@ -38,6 +38,70 @@ class Patches(nn.Module):
 
 		return self.patches(x)
 
+class MLP_Block(nn.Module):
+
+	"""
+	
+	simple class two linear layer with gelu
+
+	"""
+
+	def __init__(self, patch_dim, hidden_dim):
+
+		super(MLP_Block, self).__init__()
+
+		self.patch_dim = patch_dim
+		self.hidden_dim = hidden_dim
+
+		self.layer1 = nn.Linear(self.patch_dim, self.hidden_dim)
+		self.layer2 = nn.Linear(self.hidden_dim, self.patch_dim)
+		self.gelu = nn.GELU()
+
+
+	def forward(self, x):
+
+		x = self.layer2(self.gelu(self.layer1(x)))
+		return x
+
+
+class Mixer_Block(nn.Module):
+
+	
+	"""
+		norm -> xT -> mlp1 ->xT ->norm ->mlp2.xT ->
+
+	"""
+
+
+	def __init__(self, n_patches, hidden_dim, channel_dim, token_dim,):
+
+		super(Mixer_Block, self).__init__()
+
+		self.n_patches = n_patches
+		self.hidden_dim = hidden_dim
+		self.channel_dim = channel_dim
+		self.token_dim = token_dim
+
+
+		self.norm1 = nn.LayerNorm(hidden_dim)
+		self.norm2 = nn.LayerNorm(hidden_dim)
+		self.channel_mlp = MLP_Block(self.hidden_dim, self.channel_dim)
+		self.token_mlp = MLP_Block(self.hidden_dim, self.token_dim)
+		# [mlp1]
+		# [mlp2]
+	
+	def forward(self, x):
+
+		out = self.norm1(x)
+		out = out.transpose(1,2)
+		out = self.channel_mlp(out)
+		out = out.transpose(1,2)
+		y = out + x
+		out = self.norm2(out)
+		out = self.channel_mlp(out)
+		out = out + y
+
+		return out
 
 
 if __name__ == '__main__':
