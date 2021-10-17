@@ -104,8 +104,59 @@ class Mixer_Block(nn.Module):
 		return out
 
 
+class MLP_Mixer(nn.Module):
+
+	def __init__(self, img_dim, patch_size, hidden_dim, channel_dim, token_dim, n_blocks, n_classes):
+
+		super(MLP_Mixer,self).__init__()
+
+		self.img_dim = img_dim
+		self.patch_size = patch_size
+		self.hidden_dim = hidden_dim
+		self.channel_dim = channel_dim
+		self.token_dim = token_dim
+		self.n_blocks = n_blocks
+		self.n_classes = n_classes
+
+		self.n_patches = (self.img_dim // self.patch_size ) ** 2
+		self.mixer_blocks = nn.ModuleList(
+			[
+				Mixer_Block(self.n_patches, self.hidden_dim, self.channel_dim, self.token_dim)
+				for _ in range(self.n_blocks)
+			]
+			
+		)
+
+		self.norm1 = nn.LayerNorm(hidden_dim)
+		self.classifier = nn.Linear(hidden_dim, self.n_classes)
+
+	def forward(self, x):
+
+		# x = torch.transpose(x.flatten(2),1,2)
+		for mixer_block in self.mixer_blocks:
+
+			out = mixer_block(x)
+		
+		out = self.norm1(out)
+		out = out.mean(dim=1)
+		pred = self.classifier(out)
+
+		return pred
+
+
 if __name__ == '__main__':
 	
 	inp = torch.randn(1,3,224,224)
 	pat = Patches(3, 32, 512, 224)
-	print(pat(inp).shape)
+	# print(pat(inp).shape, type(torch.tensor(pat)))
+	img_size = 224
+	patch_size = 32
+	hidden_dim = 512
+	channel_dim = 2048
+	token_dim = 256
+	n_blocks = 1
+	n_classes = 10
+	mixer = MLP_Mixer(img_size, patch_size, hidden_dim, channel_dim, token_dim, n_blocks, n_classes)
+
+	out =  mixer(pat(inp))
+	print(out.shape)
