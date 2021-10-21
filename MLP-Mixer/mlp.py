@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import einops
 
 
 class Patches(nn.Module):
@@ -60,7 +61,13 @@ class MLP_Block(nn.Module):
 
 	def forward(self, x):
 
-		x = self.layer2(self.gelu(self.layer1(x)))
+		print("before layer1", x.shape, self.patch_dim, self.hidden_dim)
+		x = self.layer1(x)
+		print("after",x.shape)
+		x = self.gelu(x)
+		x = self.layer2(x)
+		print(x.shape)
+		# exit()	 
 		return x
 
 
@@ -85,16 +92,18 @@ class Mixer_Block(nn.Module):
 
 		self.norm1 = nn.LayerNorm(hidden_dim)
 		self.norm2 = nn.LayerNorm(hidden_dim)
-		self.channel_mlp = MLP_Block(self.hidden_dim, self.channel_dim)
-		self.token_mlp = MLP_Block(self.hidden_dim, self.token_dim)
+		self.token_mlp = MLP_Block(self.n_patches, self.channel_dim)
+		self.channel_mlp = MLP_Block(self.hidden_dim, self.token_dim)
 		# [mlp1]
 		# [mlp2]
 	
 	def forward(self, x):
 
 		out = self.norm1(x)
+		print("before transpose", out.shape)
 		out = out.transpose(1,2)
-		out = self.channel_mlp(out)
+		print("before mlp", out.shape, self.hidden_dim)
+		out = self.token_mlp(out)
 		out = out.transpose(1,2)
 		y = out + x
 		out = self.norm2(out)
@@ -133,13 +142,20 @@ class MLP_Mixer(nn.Module):
 	def forward(self, x):
 
 		# x = torch.transpose(x.flatten(2),1,2)
+		print(x.shape)
+		# exit()
+		x = einops.rearrange(
+            x, "n c h w -> n (h w) c")
 		for mixer_block in self.mixer_blocks:
 
 			out = mixer_block(x)
 		
 		out = self.norm1(out)
+		print("out shape before mean", out.shape)
 		out = out.mean(dim=1)
+		print("out after mean", out.shape)
 		pred = self.classifier(out)
+		print("pread", pred.shape)
 
 		return pred
 
