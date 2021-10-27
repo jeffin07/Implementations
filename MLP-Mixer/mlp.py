@@ -6,8 +6,8 @@ import einops
 class Patches(nn.Module):
 	"""Patches Class
 	
-	Paramter
-	--------
+	Arguments
+	---------
 
 	in_channels : int
 				Input channel number 
@@ -41,9 +41,16 @@ class Patches(nn.Module):
 
 class MLP_Block(nn.Module):
 
-	"""
+	"""MLP Block Class
+
+	Arguments
+	---------
+
+	patch_dim : int 
+				patch dimension
+	hidden_dim : int
+				projection dimension between layers
 	
-	simple class two linear layer with gelu
 
 	"""
 
@@ -61,21 +68,29 @@ class MLP_Block(nn.Module):
 
 	def forward(self, x):
 
-		print("before layer1", x.shape, self.patch_dim, self.hidden_dim)
 		x = self.layer1(x)
-		print("after",x.shape)
 		x = self.gelu(x)
-		x = self.layer2(x)
-		print(x.shape)
-		# exit()	 
+		x = self.layer2(x)	 
 		return x
 
 
 class Mixer_Block(nn.Module):
 
 	
-	"""
-		norm -> xT -> mlp1 ->xT ->norm ->mlp2.xT ->
+	"""Mixer_Block Class
+
+	Arguments
+	---------
+
+		n_patches : int
+					patch dimension
+		hidden_dim : int 
+					input dimension for token mlp
+		channel_dim : int 
+					output dimension for channel mlp
+		token_dim : int
+					output dimension for token mlp
+
 
 	"""
 
@@ -94,15 +109,12 @@ class Mixer_Block(nn.Module):
 		self.norm2 = nn.LayerNorm(hidden_dim)
 		self.token_mlp = MLP_Block(self.n_patches, self.channel_dim)
 		self.channel_mlp = MLP_Block(self.hidden_dim, self.token_dim)
-		# [mlp1]
-		# [mlp2]
+
 	
 	def forward(self, x):
 
 		out = self.norm1(x)
-		print("before transpose", out.shape)
 		out = out.transpose(1,2)
-		print("before mlp", out.shape, self.hidden_dim)
 		out = self.token_mlp(out)
 		out = out.transpose(1,2)
 		y = out + x
@@ -114,6 +126,27 @@ class Mixer_Block(nn.Module):
 
 
 class MLP_Mixer(nn.Module):
+
+	"""MLP_Mixer Class
+
+	Arguments
+	---------
+		img_dim : int
+					input image dimension
+		patch_size : int
+					patch size dimension
+		hidden_dim : int
+					dimension for the projections
+		channel_dim : int
+					channel_mlp hidden dimension
+		token_dim : int
+					token_mlp hidden_dimension
+		n_block : int
+					number of mlp
+		n_classes : int
+					number of classes
+
+	"""
 
 	def __init__(self, img_dim, patch_size, hidden_dim, channel_dim, token_dim, n_blocks, n_classes):
 
@@ -141,9 +174,7 @@ class MLP_Mixer(nn.Module):
 
 	def forward(self, x):
 
-		# x = torch.transpose(x.flatten(2),1,2)
-		print(x.shape)
-		# exit()
+		
 		x = einops.rearrange(
             x, "n c h w -> n (h w) c")
 		for mixer_block in self.mixer_blocks:
@@ -151,28 +182,7 @@ class MLP_Mixer(nn.Module):
 			out = mixer_block(x)
 		
 		out = self.norm1(out)
-		print("out shape before mean", out.shape)
 		out = out.mean(dim=1)
-		print("out after mean", out.shape)
 		pred = self.classifier(out)
-		print("pread", pred.shape)
 
 		return pred
-
-
-if __name__ == '__main__':
-	
-	inp = torch.randn(1,3,224,224)
-	pat = Patches(3, 32, 512, 224)
-	# print(pat(inp).shape, type(torch.tensor(pat)))
-	img_size = 224
-	patch_size = 32
-	hidden_dim = 512
-	channel_dim = 2048
-	token_dim = 256
-	n_blocks = 1
-	n_classes = 10
-	mixer = MLP_Mixer(img_size, patch_size, hidden_dim, channel_dim, token_dim, n_blocks, n_classes)
-
-	out =  mixer(pat(inp))
-	print(out.shape)
