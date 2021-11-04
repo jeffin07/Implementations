@@ -9,4 +9,5 @@ Contains implementation of various research papers
 5. [SENet](./SENet)
 6. [Transformer](./Transformer)
 7. [Vision Transformer](./ViT)
+8. [MLP-Mixer](./MLP-Mixer)
 
