@@ -11,13 +11,13 @@ class Tokenizer(nn.Module):
 		# need to know more !
 		self.tdim = self.embedding_dim // 2
 		self.tkernel = (3, 3)
-		self.tconv1 = nn.Conv2d(3, self.tdim, self.tkernel, (2, 2))
-		self.tconv2 = nn.Conv2d(self.tdim, self.tdim, self.tkernel, (1, 1))
-		self.tconv3 = nn.Conv2d(self.tdim, self.embedding_dim, self.tkernel, (1, 1))
+		self.tconv1 = nn.Conv2d(3, self.tdim, self.tkernel, (2, 2), padding=(1, 1))
+		self.tconv2 = nn.Conv2d(self.tdim, self.tdim, self.tkernel, (1, 1), padding=(1, 1))
+		self.tconv3 = nn.Conv2d(self.tdim, self.embedding_dim, self.tkernel, (1, 1), padding=(1, 1))
 		self.activation = nn.ReLU(inplace = True)
 		self.batchnorm1 = nn.BatchNorm2d(self.tdim)
 		self.batchnorm2 = nn.BatchNorm2d(self.embedding_dim)
-		self.maxpool = nn.MaxPool2d(3, stride = 2)
+		self.maxpool = nn.MaxPool2d(3, stride = 2, padding=(1, 1), dilation=(1, 1))
 
 	def forward(self, x):
 		
